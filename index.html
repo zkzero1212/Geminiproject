@@ -111,8 +111,8 @@
 </div>
 
 <script>
-  // ★ 백엔드(앱스 스크립트)에서 배포 후 받은 웹 앱 URL을 아래에 꼭 넣어주세요!
-  const GAS_URL = 'https://script.google.com/macros/s/AKfycbwwxsJjLCqBqnf0WQK_6kxhTczVyL9z7ZTPHkmt5hbfHYWhUQKHMyOxEkFCAvi42L8/exec'; 
+  // ★여기에 발급받은 GAS 웹 앱 URL을 붙여넣으세요.
+  const GAS_URL = '여기에_GAS_웹앱_URL을_입력하세요'; 
   
   let masterConfig = {};
   let currentUser = null;
@@ -149,7 +149,9 @@
 
   function showSection(id) {
     document.querySelectorAll('.container > div:not(.loader)').forEach(div => div.classList.add('hidden'));
-    document.getElementById(id).classList.remove('hidden');
+    if(id) {
+      document.getElementById(id).classList.remove('hidden');
+    }
   }
 
   async function handleLogin() {
@@ -157,7 +159,8 @@
     if(!email) return alert("이메일을 입력해주세요.");
     
     document.getElementById('loading').classList.remove('hidden');
-    showSection('');
+    // 모든 섹션을 숨기고 로딩만 보여줌
+    document.querySelectorAll('.container > div:not(.loader)').forEach(div => div.classList.add('hidden'));
     
     try {
       const res = await fetch(`${GAS_URL}?action=login&email=${encodeURIComponent(email)}`);
@@ -173,6 +176,7 @@
         showSection('login-section');
       }
     } catch(e) {
+      document.getElementById('loading').classList.add('hidden');
       alert("로그인 통신 에러");
       showSection('login-section');
     }
@@ -187,9 +191,10 @@
       
       const today = new Date();
       const expiry = new Date(currentUser.expiryDate);
-      const diffTime = Math.abs(expiry - today);
+      const diffTime = expiry - today;
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      document.getElementById('active-dday').innerText = `D-${diffDays}`;
+      
+      document.getElementById('active-dday').innerText = diffDays >= 0 ? `D-${diffDays}` : `만료됨 (D+${Math.abs(diffDays)})`;
 
       document.getElementById('auto-renew-check').checked = (currentUser.autoRenew === 'Y');
       document.getElementById('auto-renew-pin').value = currentUser.pinCode || '';
@@ -331,3 +336,4 @@
 </script>
 </body>
 </html>
+
