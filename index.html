@@ -6,23 +6,49 @@
   <title>가족 공유 무인 자동 정산 시스템</title>
   <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; color: #333; margin: 0; padding: 20px; display: flex; justify-content: center; }
-    .container { max-width: 500px; width: 100%; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .container { max-width: 500px; width: 100%; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); position: relative; }
     h1, h2 { text-align: center; color: #1a73e8; }
     .btn { display: block; width: 100%; padding: 15px; margin: 10px 0; font-size: 16px; font-weight: bold; text-align: center; border: none; border-radius: 8px; cursor: pointer; transition: 0.3s; }
     .btn-primary { background-color: #1a73e8; color: white; }
     .btn-secondary { background-color: #f1f3f4; color: #333; border: 1px solid #dadce0; }
     .btn-danger { background-color: #ea4335; color: white; }
     .btn:hover { opacity: 0.9; }
-    .hidden { display: none; }
-    .info-box { background: #e8f0fe; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; }
-    input, select { width: 100%; padding: 12px; margin: 8px 0 20px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
-    .loader { text-align: center; margin: 20px 0; font-weight: bold; color: #1a73e8; }
+    .hidden { display: none !important; }
+    .info-box { background: #e8f0fe; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; line-height: 1.5; }
+    .error-box { background: #fce8e6; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; color: #c5221f; border: 1px solid #fad2cf; line-height: 1.5; }
+    input, select { width: 100%; padding: 12px; margin: 8px 0 20px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 15px; }
+    label { font-weight: bold; font-size: 14px; color: #555; }
+    
+    /* 동적 금액 표시 강조 영역 */
+    .price-highlight { text-align: center; margin: 5px 0 20px 0; font-size: 18px; font-weight: bold; color: #d93025; background: #fff3f3; padding: 10px; border-radius: 8px; border: 1px solid #fad2cf; }
+
+    /* 로딩 오버레이 스타일 */
+    #global-loader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); z-index: 9998; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; backdrop-filter: blur(2px); }
+    .spinner { border: 4px solid rgba(255, 255, 255, 0.3); border-top: 4px solid #fff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    #global-loader-text { margin-top: 15px; font-weight: bold; font-size: 16px; text-align: center; line-height: 1.5; }
+
+    /* 커스텀 웹 팝업 모달 스타일 */
+    #custom-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 9999; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
+    .modal-content { background: #fff; padding: 25px; border-radius: 12px; width: 80%; max-width: 350px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
+    .modal-content p { font-size: 15px; line-height: 1.5; word-break: keep-all; margin-bottom: 20px; }
   </style>
 </head>
 <body>
 
+<div id="global-loader">
+  <div class="spinner"></div>
+  <div id="global-loader-text">데이터를 불러오는 중입니다...</div>
+</div>
+
+<div id="custom-modal" class="hidden">
+  <div class="modal-content">
+    <p id="custom-modal-text"></p>
+    <button class="btn btn-primary" style="margin-bottom:0;" onclick="closeModal()">확인</button>
+  </div>
+</div>
+
 <div class="container">
-  <div id="loading" class="loader">데이터를 불러오는 중입니다...</div>
 
   <div id="home-section" class="hidden">
     <h1>가족 공유 시스템</h1>
@@ -33,7 +59,7 @@
   <div id="register-section" class="hidden">
     <h2>최초 가입 및 입금</h2>
     <div class="info-box">
-      <strong>[입금 정보]</strong><br>
+      <strong>[입금 계좌 정보]</strong><br>
       은행: <span id="bank-info"></span><br>
       계좌번호: <span id="account-info"></span><br>
       예금주: <span id="owner-info"></span><br>
@@ -43,12 +69,24 @@
     </div>
     
     <label>이용 개월 수 선택</label>
-    <select id="reg-months">
+    <select id="reg-months" onchange="updateRegPrice()">
       <option value="1">1개월</option>
+      <option value="2">2개월</option>
       <option value="3">3개월</option>
+      <option value="4">4개월</option>
+      <option value="5">5개월</option>
       <option value="6">6개월</option>
+      <option value="7">7개월</option>
+      <option value="8">8개월</option>
+      <option value="9">9개월</option>
+      <option value="10">10개월</option>
+      <option value="11">11개월</option>
       <option value="12">12개월</option>
     </select>
+    
+    <div class="price-highlight">
+      최종 입금 금액: <span id="reg-total-price">0</span>원
+    </div>
 
     <label>실제 입금자 성함 (본명 정자 3글자)</label>
     <input type="text" id="reg-name" maxlength="3" placeholder="홍길동">
@@ -66,6 +104,14 @@
     <input type="email" id="login-email" placeholder="가입한 이메일을 입력하세요">
     <button class="btn btn-primary" onclick="handleLogin()">조회하기</button>
     <button class="btn btn-secondary" onclick="showSection('home-section')">뒤로 가기</button>
+  </div>
+
+  <div id="login-error-section" class="hidden">
+    <h2>조회 실패</h2>
+    <div class="error-box" id="login-fail-notice">
+      </div>
+    <button class="btn btn-primary" onclick="showSection('register-section')">시작하기 (신규 가입)</button>
+    <button class="btn btn-secondary" onclick="showSection('login-section')">이메일 다시 입력하기</button>
   </div>
 
   <div id="dashboard-waiting" class="hidden">
@@ -86,22 +132,56 @@
       <strong>남은기간: </strong> <span id="active-dday" style="color: #1a73e8; font-weight: bold;"></span>
     </div>
     
-    <div style="border: 1px solid #ccc; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-      <p style="font-size: 13px; margin-top:0;">자유롭게 요금 입금 후 아래 버튼을 누르면 연장됩니다.</p>
-      <select id="renew-months">
+    <div style="border: 1px solid #ccc; padding: 18px; border-radius: 8px; margin-bottom: 20px;">
+      <h3 style="margin-top:0; color: #1a73e8; font-size: 16px;">자유 연장 결제</h3>
+      
+      <div style="background: #f8f9fa; padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 13px; line-height: 1.5; border: 1px solid #e8eaed;">
+        <strong>[입금 계좌 정보]</strong> (1개월: <span id="dash-price-info"></span>원)<br>
+        은행: <span id="dash-bank-info"></span><br>
+        계좌번호: <span id="dash-account-info"></span><br>
+        예금주: <span id="dash-owner-info"></span>
+      </div>
+
+      <label>연장 개월 수 선택</label>
+      <select id="renew-months" onchange="updateRenewPrice()">
         <option value="1">1개월 연장</option>
+        <option value="2">2개월 연장</option>
         <option value="3">3개월 연장</option>
+        <option value="4">4개월 연장</option>
+        <option value="5">5개월 연장</option>
         <option value="6">6개월 연장</option>
+        <option value="7">7개월 연장</option>
+        <option value="8">8개월 연장</option>
+        <option value="9">9개월 연장</option>
+        <option value="10">10개월 연장</option>
+        <option value="11">11개월 연장</option>
         <option value="12">12개월 연장</option>
       </select>
+      
+      <div class="price-highlight">
+        입금하실 금액: <span id="renew-total-price">0</span>원
+      </div>
+
       <button class="btn btn-primary" onclick="manualRenewPolling()">수동 연장 확인</button>
     </div>
 
-    <div style="border: 1px solid #ccc; padding: 15px; border-radius: 8px; margin-bottom: 20px; background: #fff8e1;">
-      <h4 style="margin-top:0;">완전 무인 자동 연장 설정</h4>
-      <p style="font-size: 12px;">입금자명을 [이름+숫자4자리]로 송금 시 버튼 클릭 없이 자동 연장됩니다.</p>
-      <label><input type="checkbox" id="auto-renew-check"> 자동연장 사용 (Y/N)</label>
-      <input type="text" id="auto-renew-pin" maxlength="4" placeholder="고유숫자 4자리 입력" style="margin-top: 10px;">
+    <div style="border: 1px solid #dadce0; padding: 18px; border-radius: 8px; margin-bottom: 20px; background: #fff8e1;">
+      <h3 style="margin-top:0; color: #b06000; font-size: 16px;">자동연장 희망 설정</h3>
+      <p style="font-size: 13px; color: #d93025; font-weight: bold; line-height: 1.4; margin-bottom: 15px;">
+        자동연장 희망 후, 입금하실 때 "입금자명+PIN4자리"로 입금하셔야만 정상반영 됩니다.
+      </p>
+      
+      <label>자동연장 사용 여부</label>
+      <select id="auto-renew-select" onchange="togglePinInput()">
+        <option value="N">자동연장 비희망</option>
+        <option value="Y">자동연장 희망</option>
+      </select>
+      
+      <div id="pin-input-area" class="hidden">
+        <label>PIN 번호 설정 (숫자 4자리)</label>
+        <input type="text" id="auto-renew-pin" maxlength="4" placeholder="고유숫자 4자리 입력">
+      </div>
+      
       <button class="btn btn-secondary" onclick="saveAutoRenew()">설정 저장</button>
     </div>
 
@@ -116,29 +196,81 @@
   
   let masterConfig = {};
   let currentUser = null;
+  let basePrice = 0; // 동적 금액 계산을 위한 전역 변수
+
+  // 커스텀 팝업 함수
+  function customAlert(message) {
+    document.getElementById('custom-modal-text').innerHTML = message.replace(/\n/g, '<br>');
+    document.getElementById('custom-modal').classList.remove('hidden');
+  }
+  function closeModal() {
+    document.getElementById('custom-modal').classList.add('hidden');
+  }
+
+  // 글로벌 로딩 함수
+  function showLoader(text) {
+    document.getElementById('global-loader-text').innerHTML = text.replace(/\n/g, '<br>');
+    document.getElementById('global-loader').classList.remove('hidden');
+  }
+  function hideLoader() {
+    document.getElementById('global-loader').classList.add('hidden');
+  }
+
+  // 동적 금액 계산 함수 (콤마 처리 포함)
+  function updateRegPrice() {
+    const months = parseInt(document.getElementById('reg-months').value) || 1;
+    const total = months * basePrice;
+    document.getElementById('reg-total-price').innerText = total.toLocaleString();
+  }
+  function updateRenewPrice() {
+    const months = parseInt(document.getElementById('renew-months').value) || 1;
+    const total = months * basePrice;
+    document.getElementById('renew-total-price').innerText = total.toLocaleString();
+  }
 
   window.onload = async function() {
+    showLoader("초기 데이터를 불러오는 중입니다...");
     try {
       const res = await fetch(`${GAS_URL}?action=getInitData`);
       const result = await res.json();
       if(result.success) {
         masterConfig = result.data;
-        document.getElementById('bank-info').innerText = masterConfig['은행명'];
-        document.getElementById('account-info').innerText = masterConfig['계좌번호'];
-        document.getElementById('owner-info').innerText = masterConfig['예금주'];
-        document.getElementById('price-info').innerText = masterConfig['기준금액'];
-        document.getElementById('notice-info').innerText = masterConfig['공지사항'];
+        basePrice = parseInt(masterConfig['기준금액']) || 0;
         
+        // [등록 화면] 정보 세팅
+        document.getElementById('bank-info').innerText = masterConfig['은행명'] || '';
+        document.getElementById('account-info').innerText = masterConfig['계좌번호'] || '';
+        document.getElementById('owner-info').innerText = masterConfig['예금주'] || '';
+        document.getElementById('price-info').innerText = basePrice.toLocaleString();
+        document.getElementById('notice-info').innerText = masterConfig['공지사항'] || '';
+        
+        // [대시보드 수동연장] 정보 세팅
+        document.getElementById('dash-bank-info').innerText = masterConfig['은행명'] || '';
+        document.getElementById('dash-account-info').innerText = masterConfig['계좌번호'] || '';
+        document.getElementById('dash-owner-info').innerText = masterConfig['예금주'] || '';
+        document.getElementById('dash-price-info').innerText = basePrice.toLocaleString();
+
+        const failMsg = masterConfig['로그인실패공지'] || '해당하는 이용자를 찾을 수 없습니다.<br>정상적인 이용자라면 문의를, 신규이용자라면 아래 버튼을 이용해주세요.';
+        document.getElementById('login-fail-notice').innerHTML = failMsg.replace(/\n/g, '<br>');
+        
+        // 최초 화면 로드 시 1개월 기준 금액 표시 초기화
+        updateRegPrice();
+        updateRenewPrice();
+
         checkSession();
+      } else {
+        hideLoader();
+        customAlert("데이터를 불러오지 못했습니다.");
       }
     } catch(e) {
-      alert("데이터 로드 중 오류가 발생했습니다.");
+      hideLoader();
+      customAlert("데이터 통신 중 오류가 발생했습니다.");
     }
   }
 
   function checkSession() {
     const savedUser = localStorage.getItem('gemini_user');
-    document.getElementById('loading').classList.add('hidden');
+    hideLoader();
     if (savedUser) {
       currentUser = JSON.parse(savedUser);
       renderDashboard();
@@ -148,36 +280,45 @@
   }
 
   function showSection(id) {
-    document.querySelectorAll('.container > div:not(.loader)').forEach(div => div.classList.add('hidden'));
+    document.querySelectorAll('.container > div').forEach(div => div.classList.add('hidden'));
     if(id) {
       document.getElementById(id).classList.remove('hidden');
     }
   }
 
+  // PIN 입력창 토글 (자동연장 희망 시에만 노출)
+  function togglePinInput() {
+    const val = document.getElementById('auto-renew-select').value;
+    if(val === 'Y') {
+      document.getElementById('pin-input-area').classList.remove('hidden');
+    } else {
+      document.getElementById('pin-input-area').classList.add('hidden');
+      document.getElementById('auto-renew-pin').value = '';
+    }
+  }
+
   async function handleLogin() {
     const email = document.getElementById('login-email').value;
-    if(!email) return alert("이메일을 입력해주세요.");
+    if(!email) return customAlert("이메일을 입력해주세요.");
     
-    document.getElementById('loading').classList.remove('hidden');
-    // 모든 섹션을 숨기고 로딩만 보여줌
-    document.querySelectorAll('.container > div:not(.loader)').forEach(div => div.classList.add('hidden'));
+    showLoader("회원 정보를 조회 중입니다...");
+    showSection(''); // 뒤의 컨테이너 내용 가리기
     
     try {
       const res = await fetch(`${GAS_URL}?action=login&email=${encodeURIComponent(email)}`);
       const result = await res.json();
-      document.getElementById('loading').classList.add('hidden');
+      hideLoader();
       
       if(result.success) {
         localStorage.setItem('gemini_user', JSON.stringify(result.data));
         currentUser = result.data;
         renderDashboard();
       } else {
-        alert(result.message);
-        showSection('login-section');
+        showSection('login-error-section');
       }
     } catch(e) {
-      document.getElementById('loading').classList.add('hidden');
-      alert("로그인 통신 에러");
+      hideLoader();
+      customAlert("로그인 통신 에러가 발생했습니다.");
       showSection('login-section');
     }
   }
@@ -196,8 +337,14 @@
       
       document.getElementById('active-dday').innerText = diffDays >= 0 ? `D-${diffDays}` : `만료됨 (D+${Math.abs(diffDays)})`;
 
-      document.getElementById('auto-renew-check').checked = (currentUser.autoRenew === 'Y');
+      // 드롭다운 및 PIN 세팅
+      document.getElementById('auto-renew-select').value = (currentUser.autoRenew === 'Y') ? 'Y' : 'N';
       document.getElementById('auto-renew-pin').value = currentUser.pinCode || '';
+      togglePinInput(); // UI 업데이트
+
+      // 가격 계산 초기화
+      document.getElementById('renew-months').value = "1";
+      updateRenewPrice();
 
       showSection('dashboard-active');
     }
@@ -214,12 +361,10 @@
     const name = document.getElementById('reg-name').value;
     const email = document.getElementById('reg-email').value;
 
-    if(name.length !== 3) return alert("본명 정자 3글자를 입력해주세요.");
-    if(!email) return alert("이메일을 입력해주세요.");
+    if(name.length !== 3) return customAlert("본명 정자 3글자를 정확히 입력해주세요.");
+    if(!email) return customAlert("이메일을 입력해주세요.");
 
-    const btn = document.getElementById('btn-verify');
-    btn.disabled = true;
-    btn.innerText = "입금 내역 확인 중... (최대 30초)";
+    showLoader("입금 내역을 스캔 중입니다...\n최대 30초 정도 소요될 수 있습니다.");
 
     let attempts = 0;
     const maxAttempts = 10;
@@ -234,19 +379,22 @@
         
         if(result.status === 'error') {
           clearInterval(interval);
-          btn.disabled = false;
-          btn.innerText = "입금 완료 후 확인";
-          alert(result.message);
+          hideLoader();
+          customAlert(result.message);
         } 
         else if (result.status === 'matched' || result.status === 'adjusted') {
           clearInterval(interval);
-          if(result.status === 'adjusted') alert(result.message);
+          hideLoader();
+          
+          let alertMsg = "";
+          if(result.status === 'adjusted') alertMsg += result.message + "\n\n";
           
           const newExpiry = new Date();
           newExpiry.setMonth(newExpiry.getMonth() + result.months);
           const expiryStr = newExpiry.toISOString().split('T')[0];
 
-          alert(`[등록완료]\n금액: ${result.amount}원\n기간: ${result.months}개월\n만료일: ${expiryStr}\n이메일: ${email}\n\n초대를 기다려주세요.`);
+          alertMsg += `[등록 완료]\n금액: ${result.amount.toLocaleString()}원\n기간: ${result.months}개월\n만료일: ${expiryStr}\n이메일: ${email}\n\n관리자 초대를 기다려주세요.`;
+          customAlert(alertMsg);
           
           await fetch(GAS_URL, {
             method: 'POST',
@@ -257,9 +405,8 @@
         }
         else if (attempts >= maxAttempts) {
           clearInterval(interval);
-          btn.disabled = false;
-          btn.innerText = "입금 완료 후 확인";
-          alert("입금을 재요청합니다. 만약 입금하셨다면 관리자에게 문의하세요.");
+          hideLoader();
+          customAlert("입금 내역을 찾지 못했습니다.\n입금하셨다면 관리자에게 문의해 주세요.");
         }
       } catch(e) {
         console.error(e);
@@ -274,29 +421,36 @@
 
   async function notifyAdmin() {
     if(!currentUser) return;
-    alert("관리자에게 푸시 알림을 발송합니다.");
+    showLoader("알림을 발송 중입니다...");
     await fetch(`${GAS_URL}?action=notifyAdmin&email=${encodeURIComponent(currentUser.email)}`);
+    hideLoader();
+    customAlert("주인장에게 푸시 알림이 발송되었습니다!");
   }
 
   async function saveAutoRenew() {
-    const isAuto = document.getElementById('auto-renew-check').checked ? 'Y' : 'N';
+    const isAuto = document.getElementById('auto-renew-select').value;
     const pin = document.getElementById('auto-renew-pin').value;
     
     if(isAuto === 'Y' && !/^\d{4}$/.test(pin)) {
-      return alert("자동연장 활성화 시 4자리 숫자 핀코드를 반드시 입력해야 합니다.");
+      return customAlert("자동연장 희망 시 4자리 숫자 PIN 번호를 반드시 입력해야 합니다.");
     }
 
+    showLoader("설정을 저장 중입니다...");
     try {
       await fetch(GAS_URL, {
         method: 'POST',
         body: JSON.stringify({ action: 'updateAutoRenew', email: currentUser.email, isAuto: isAuto, pinCode: pin })
       });
-      alert("자동 연장 설정이 저장되었습니다.");
+      hideLoader();
+      customAlert("자동 연장 설정이 안전하게 저장되었습니다.");
+      
       currentUser.autoRenew = isAuto;
       currentUser.pinCode = pin;
       localStorage.setItem('gemini_user', JSON.stringify(currentUser));
+      renderDashboard(); 
     } catch(e) {
-      alert("저장 중 오류가 발생했습니다.");
+      hideLoader();
+      customAlert("저장 중 오류가 발생했습니다.");
     }
   }
 
@@ -305,7 +459,7 @@
     const name = currentUser.name;
     let attempts = 0;
     
-    alert("입금 내역을 확인합니다. 최대 30초가 소요될 수 있습니다.");
+    showLoader("입금 내역을 스캔 중입니다...\n최대 30초 정도 소요될 수 있습니다.");
 
     const interval = setInterval(async () => {
       attempts++;
@@ -315,20 +469,25 @@
         
         if (result.status === 'matched' || result.status === 'adjusted') {
           clearInterval(interval);
-          if(result.status === 'adjusted') alert(result.message);
+          hideLoader();
+          
+          let alertMsg = "";
+          if(result.status === 'adjusted') alertMsg += result.message + "\n\n";
           
           const currentExpiry = new Date(currentUser.expiryDate);
           currentExpiry.setMonth(currentExpiry.getMonth() + result.months);
           const newExpiryStr = currentExpiry.toISOString().split('T')[0];
           
-          alert(`연장이 완료되었습니다.\n변경 전: ${currentUser.expiryDate}\n변경 후: ${newExpiryStr}`);
+          alertMsg += `연장이 완료되었습니다!\n변경 전: ${currentUser.expiryDate}\n변경 후: ${newExpiryStr}`;
+          customAlert(alertMsg);
           
           currentUser.expiryDate = newExpiryStr;
           localStorage.setItem('gemini_user', JSON.stringify(currentUser));
           renderDashboard();
         } else if (attempts >= 10) {
           clearInterval(interval);
-          alert("입금 내역을 찾을 수 없습니다. 다시 시도해주세요.");
+          hideLoader();
+          customAlert("입금 내역을 찾지 못했습니다.\n다시 시도해 주세요.");
         }
       } catch(e) {}
     }, 3000);
@@ -336,4 +495,3 @@
 </script>
 </body>
 </html>
-
