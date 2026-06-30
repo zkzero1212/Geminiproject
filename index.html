@@ -56,6 +56,7 @@ label{font-weight:bold;font-size:14px;color:#555;display:block;margin-bottom:5px
     <button class="btn btn-secondary" onclick="closeASModal()">닫기</button>
   </div>
 </div>
+
 <div class="container">
   <div id="home-section" class="hidden">
     <h1>가족 공유 시스템</h1>
@@ -157,14 +158,23 @@ window.onload = async () => {
       ['price-info','dash-price-info'].forEach(id=>document.getElementById(id).innerText=basePrice.toLocaleString());
       document.getElementById('notice-info').innerText = masterConfig['공지사항']||'';
       document.getElementById('login-fail-notice').innerHTML = (masterConfig['로그인실패공지']||'사용자를 찾을 수 없습니다.').replace(/\n/g, '<br>');
-      document.getElementById('user-count-display').innerText = `${result.userCount}/5`;
+      
+      const userCount = result.userCount || 0;
+      const users = result.users || [];
+      document.getElementById('user-count-display').innerText = `${userCount}/5`;
+      
       let sHtml = '';
-      result.users.forEach(u => {
-        if(!u.empty) sHtml += `<div class="slot-row"><span>${u.slot}번 - <strong>${u.email}</strong></span> <span>${u.expiry} <span class="badge-dday">${u.dday>=0?`D-${u.dday}`:`D+${Math.abs(u.dday)}`}</span></span></div>`;
-        else sHtml += `<div class="slot-row empty"><span>${u.slot}번 - [ 이용가능 ]</span></div>`;
-      });
+      for(let i = 0; i < 5; i++) {
+        let u = users.find(x => x.slot === (i + 1));
+        if(u && !u.empty) {
+          sHtml += `<div class="slot-row"><span>${u.slot}번 - <strong>${u.email}</strong></span> <span>${u.expiry} <span class="badge-dday">${u.dday>=0?`D-${u.dday}`:`D+${Math.abs(u.dday)}`}</span></span></div>`;
+        } else {
+          sHtml += `<div class="slot-row empty"><span>${i+1}번 - [ 이용가능 ]</span></div>`;
+        }
+      }
       document.getElementById('user-slots-area').innerHTML = sHtml;
-      if(result.userCount >= 5) { const b = document.getElementById('btn-start'); b.disabled = true; b.innerText = "정원이 찼습니다."; }
+      
+      if(userCount >= 5) { const b = document.getElementById('btn-start'); b.disabled = true; b.innerText = "정원이 찼습니다."; }
       updateRegPrice(); updateRenewPrice();
       if(localStorage.getItem('gemini_user')) { currentUser = JSON.parse(localStorage.getItem('gemini_user')); renderDashboard(); hideLoader(); } 
       else { showSection('home-section'); hideLoader(); }
