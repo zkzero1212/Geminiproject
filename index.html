@@ -146,6 +146,7 @@ function hideLoader() { document.getElementById('global-loader').classList.add('
 function updateRegPrice() { document.getElementById('reg-total-price').innerText = ((parseInt(document.getElementById('reg-months').value)||1)*basePrice).toLocaleString(); }
 function updateRenewPrice() { document.getElementById('renew-total-price').innerText = ((parseInt(document.getElementById('renew-months').value)||1)*basePrice).toLocaleString(); }
 
+
 window.onload = async () => {
   showLoader("데이터를 불러오는 중...");
   try {
@@ -179,7 +180,7 @@ window.onload = async () => {
       if(localStorage.getItem('gemini_user')) { currentUser = JSON.parse(localStorage.getItem('gemini_user')); renderDashboard(); hideLoader(); } 
       else { showSection('home-section'); hideLoader(); }
     } else { hideLoader(); customAlert("데이터 로드 실패."); }
-  } catch(e) { hideLoader(); customAlert("통신 에러."); }
+  } catch(e) { hideLoader(); console.error(e); customAlert("통신 에러 또는 코드 스크립트 오류 발생: " + e.message); }
 }
 function showSection(id) { document.querySelectorAll('.container > div').forEach(d=>d.classList.add('hidden')); if(id) document.getElementById(id).classList.remove('hidden'); }
 function togglePinInput() { document.getElementById('pin-input-area').classList.toggle('hidden', document.getElementById('auto-renew-select').value !== 'Y'); if(document.getElementById('auto-renew-select').value !== 'Y') document.getElementById('auto-renew-pin').value=''; }
@@ -190,14 +191,14 @@ async function handleLogin() {
   try {
     const res = await fetch(`${GAS_URL}?action=login&email=${encodeURIComponent(email)}`); const r = await res.json(); hideLoader();
     if(r.success) { localStorage.setItem('gemini_user', JSON.stringify(r.data)); currentUser = r.data; renderDashboard(); } else showSection('login-error-section');
-  } catch(e) { hideLoader(); customAlert("통신 에러."); showSection('login-section'); }
+  } catch(e) { hideLoader(); customAlert("로그인 통신 에러: " + e.message); showSection('login-section'); }
 }
 async function refreshDashboard() {
   if(!currentUser) return; showLoader("갱신 중...");
   try {
     const res = await fetch(`${GAS_URL}?action=login&email=${encodeURIComponent(currentUser.email)}`); const r = await res.json(); hideLoader();
     if(r.success) { localStorage.setItem('gemini_user', JSON.stringify(r.data)); currentUser = r.data; renderDashboard(); }
-  } catch(e) { hideLoader(); customAlert("통신 오류."); }
+  } catch(e) { hideLoader(); customAlert("통신 오류: " + e.message); }
 }
 function renderDashboard() {
   if(currentUser.status === '초대대기') showSection('dashboard-waiting'); 
@@ -246,7 +247,7 @@ async function saveAutoRenew() {
   try {
     await fetch(GAS_URL, { method:'POST', body:JSON.stringify({action:'updateAutoRenew',email:currentUser.email,isAuto:a,pinCode:p}) }); hideLoader();
     customAlert("저장되었습니다."); currentUser.autoRenew=a; currentUser.pinCode=p; localStorage.setItem('gemini_user',JSON.stringify(currentUser));
-  } catch(e) { hideLoader(); customAlert("오류 발생."); }
+  } catch(e) { hideLoader(); customAlert("오류 발생: " + e.message); }
 }
 
 async function manualRenewPolling() {
