@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -125,7 +126,7 @@ label{font-weight:bold;font-size:14px;color:#555;display:block;margin-bottom:5px
   </div>
 </div>
 
-<script>
+  <script>
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbwwxsJjLCqBqnf0WQK_6kxhTczVyL9z7ZTPHkmt5hbfHYWhUQKHMyOxEkFCAvi42L8/exec'; 
 let masterConfig = {}, currentUser = null, basePrice = 0, pendingASReason = "";
 
@@ -146,42 +147,49 @@ function hideLoader() { document.getElementById('global-loader').classList.add('
 function updateRegPrice() { document.getElementById('reg-total-price').innerText = ((parseInt(document.getElementById('reg-months').value)||1)*basePrice).toLocaleString(); }
 function updateRenewPrice() { document.getElementById('renew-total-price').innerText = ((parseInt(document.getElementById('renew-months').value)||1)*basePrice).toLocaleString(); }
 
+// [핵심 방어막] 백엔드 응답을 안전하게 파싱하는 공통 통신 함수 (가짜 에러 차단)
+async function fetchSafe(query) {
+  try {
+    const res = await fetch(GAS_URL + query);
+    const data = await res.json();
+    if (!data.success && !query.includes('checkUser')) throw new Error(data.message || '알 수 없는 서버 에러');
+    return data;
+  } catch(e) { throw new Error(e.message === 'Failed to fetch' ? '서버 연결 실패(주소 확인)' : e.message); }
+}
 
 window.onload = async () => {
   showLoader("데이터를 불러오는 중...");
   try {
-    const res = await fetch(`${GAS_URL}?action=getInitData`); const result = await res.json();
-    if(result.success) {
-      masterConfig = result.data; basePrice = parseInt(masterConfig['기준금액'])||0;
-      ['bank-info','dash-bank-info'].forEach(id=>document.getElementById(id).innerText=masterConfig['은행명']||'');
-      ['account-info','dash-account-info'].forEach(id=>document.getElementById(id).innerText=masterConfig['계좌번호']||'');
-      ['owner-info','dash-owner-info'].forEach(id=>document.getElementById(id).innerText=masterConfig['예금주']||'');
-      ['price-info','dash-price-info'].forEach(id=>document.getElementById(id).innerText=basePrice.toLocaleString());
-      document.getElementById('notice-info').innerText = masterConfig['공지사항']||'';
-      document.getElementById('login-fail-notice').innerHTML = (masterConfig['로그인실패공지']||'사용자를 찾을 수 없습니다.').replace(/\n/g, '<br>');
-      
-      const userCount = result.userCount || 0;
-      const users = result.users || [];
-      document.getElementById('user-count-display').innerText = `${userCount}/5`;
-      
-      let sHtml = '';
-      for(let i = 0; i < 5; i++) {
-        let u = users.find(x => x.slot === (i + 1));
-        if(u && !u.empty) {
-          sHtml += `<div class="slot-row"><span>${u.slot}번 - <strong>${u.email}</strong></span> <span>${u.expiry} <span class="badge-dday">${u.dday>=0?`D-${u.dday}`:`D+${Math.abs(u.dday)}`}</span></span></div>`;
-        } else {
-          sHtml += `<div class="slot-row empty"><span>${i+1}번 - [ 이용가능 ]</span></div>`;
-        }
+    const result = await fetchSafe(`?action=getInitData`);
+    masterConfig = result.data; basePrice = parseInt(masterConfig['기준금액'])||0;
+    ['bank-info','dash-bank-info'].forEach(id=>document.getElementById(id).innerText=masterConfig['은행명']||'');
+    ['account-info','dash-account-info'].forEach(id=>document.getElementById(id).innerText=masterConfig['계좌번호']||'');
+    ['owner-info','dash-owner-info'].forEach(id=>document.getElementById(id).innerText=masterConfig['예금주']||'');
+    ['price-info','dash-price-info'].forEach(id=>document.getElementById(id).innerText=basePrice.toLocaleString());
+    document.getElementById('notice-info').innerText = masterConfig['공지사항']||'';
+    document.getElementById('login-fail-notice').innerHTML = (masterConfig['로그인실패공지']||'사용자를 찾을 수 없습니다.').replace(/\n/g, '<br>');
+    
+    const userCount = result.userCount || 0;
+    const users = result.users || [];
+    document.getElementById('user-count-display').innerText = `${userCount}/5`;
+    
+    let sHtml = '';
+    for(let i = 0; i < 5; i++) {
+      let u = users.find(x => x.slot === (i + 1));
+      if(u && !u.empty) {
+        sHtml += `<div class="slot-row"><span>${u.slot}번 - <strong>${u.email}</strong></span> <span>${u.expiry} <span class="badge-dday">${u.dday>=0?`D-${u.dday}`:`D+${Math.abs(u.dday)}`}</span></span></div>`;
+      } else {
+        sHtml += `<div class="slot-row empty"><span>${i+1}번 - [ 이용가능 ]</span></div>`;
       }
-      document.getElementById('user-slots-area').innerHTML = sHtml;
-      
-      if(userCount >= 5) { const b = document.getElementById('btn-start'); b.disabled = true; b.innerText = "정원이 찼습니다."; }
-      updateRegPrice(); updateRenewPrice();
-      if(localStorage.getItem('gemini_user')) { currentUser = JSON.parse(localStorage.getItem('gemini_user')); renderDashboard(); hideLoader(); } 
-      else { showSection('home-section'); hideLoader(); }
-    } else { hideLoader(); customAlert("데이터 로드 실패."); }
-  } catch(e) { hideLoader(); console.error(e); customAlert("통신 에러 또는 코드 스크립트 오류 발생: " + e.message); }
+    }
+    document.getElementById('user-slots-area').innerHTML = sHtml;
+    if(userCount >= 5) { const b = document.getElementById('btn-start'); b.disabled = true; b.innerText = "정원이 찼습니다."; }
+    updateRegPrice(); updateRenewPrice();
+    if(localStorage.getItem('gemini_user')) { currentUser = JSON.parse(localStorage.getItem('gemini_user')); renderDashboard(); hideLoader(); } 
+    else { showSection('home-section'); hideLoader(); }
+  } catch(e) { hideLoader(); customAlert("초기화 실패:\n" + e.message); }
 }
+
 function showSection(id) { document.querySelectorAll('.container > div').forEach(d=>d.classList.add('hidden')); if(id) document.getElementById(id).classList.remove('hidden'); }
 function togglePinInput() { document.getElementById('pin-input-area').classList.toggle('hidden', document.getElementById('auto-renew-select').value !== 'Y'); if(document.getElementById('auto-renew-select').value !== 'Y') document.getElementById('auto-renew-pin').value=''; }
 
@@ -189,16 +197,16 @@ async function handleLogin() {
   const email = document.getElementById('login-email').value; if(!email) return customAlert("이메일을 입력해주세요.");
   showLoader("조회 중..."); showSection(''); 
   try {
-    const res = await fetch(`${GAS_URL}?action=login&email=${encodeURIComponent(email)}`); const r = await res.json(); hideLoader();
-    if(r.success) { localStorage.setItem('gemini_user', JSON.stringify(r.data)); currentUser = r.data; renderDashboard(); } else showSection('login-error-section');
-  } catch(e) { hideLoader(); customAlert("로그인 통신 에러: " + e.message); showSection('login-section'); }
+    const r = await fetchSafe(`?action=login&email=${encodeURIComponent(email)}`); hideLoader();
+    localStorage.setItem('gemini_user', JSON.stringify(r.data)); currentUser = r.data; renderDashboard();
+  } catch(e) { hideLoader(); if(e.message.includes('등록된 정보')) showSection('login-error-section'); else { customAlert(e.message); showSection('login-section'); } }
 }
 async function refreshDashboard() {
   if(!currentUser) return; showLoader("갱신 중...");
   try {
-    const res = await fetch(`${GAS_URL}?action=login&email=${encodeURIComponent(currentUser.email)}`); const r = await res.json(); hideLoader();
-    if(r.success) { localStorage.setItem('gemini_user', JSON.stringify(r.data)); currentUser = r.data; renderDashboard(); }
-  } catch(e) { hideLoader(); customAlert("통신 오류: " + e.message); }
+    const r = await fetchSafe(`?action=login&email=${encodeURIComponent(currentUser.email)}`); hideLoader();
+    localStorage.setItem('gemini_user', JSON.stringify(r.data)); currentUser = r.data; renderDashboard();
+  } catch(e) { hideLoader(); customAlert(e.message); }
 }
 function renderDashboard() {
   if(currentUser.status === '초대대기') showSection('dashboard-waiting'); 
@@ -219,24 +227,25 @@ async function startPolling() {
   if(!n || !e) return customAlert("입력값을 확인하세요.");
   showLoader("중복 확인 중...");
   try {
-    const cr = await fetch(`${GAS_URL}?action=checkUser&email=${encodeURIComponent(e)}&name=${encodeURIComponent(n)}`); const c = await cr.json(); hideLoader();
+    const c = await fetchSafe(`?action=checkUser&email=${encodeURIComponent(e)}&name=${encodeURIComponent(n)}`); hideLoader();
     if(c.emailExists) return customAlert("이미 초대받은 이메일 주소입니다.\n메일을 확인하시거나 로그인 버튼을 이용해주세요.");
     if(c.nameExists) await customAlert("동일한 입금자명이 존재합니다.\n연장 시 혼선이 생길 수 있으니 유의해주세요.");
-  } catch(err) { return hideLoader(); }
+  } catch(err) { hideLoader(); return customAlert(err.message); }
+  
   showLoader("입금 내역 스캔 중...(최대 30초)");
   let att = 0, intv = setInterval(async () => {
     att++; try {
-      const res = await fetch(`${GAS_URL}?action=pollDeposit&name=${encodeURIComponent(n)}&months=${m}`); const r = await res.json();
+      const r = await fetchSafe(`?action=pollDeposit&name=${encodeURIComponent(n)}&months=${m}`);
       if(r.status === 'error') { clearInterval(intv); hideLoader(); customAlert(r.message); } 
       else if (r.status === 'matched' || r.status === 'adjusted') {
         clearInterval(intv); hideLoader();
         let nDate = new Date(); nDate.setMonth(nDate.getMonth()+r.months); let expStr = nDate.toISOString().split('T')[0];
         let msg = r.status==='adjusted'?r.message+"\n\n":"";
         await customAlert(msg+`[등록 완료]\n금액: ${r.amount.toLocaleString()}원\n기간: ${r.months}개월\n이메일: ${e}\n초대를 기다려주세요.`);
-        await fetch(GAS_URL, { method:'POST', body:JSON.stringify({action:'registerUser',email:e,name:n,expiryDate:expStr}) });
+        await fetchSafe(`?action=registerUser&email=${encodeURIComponent(e)}&name=${encodeURIComponent(n)}&expiryDate=${encodeURIComponent(expStr)}`);
         document.getElementById('login-email').value = e; handleLogin();
       } else if (att >= 10) { clearInterval(intv); hideLoader(); customAlert("입금 내역을 찾지 못했습니다."); }
-    } catch(err){}
+    } catch(err){ if(att >= 10) { clearInterval(intv); hideLoader(); customAlert(err.message); } }
   }, 3000); 
 }
 
@@ -245,23 +254,22 @@ async function saveAutoRenew() {
   if(a==='Y' && p.length!==4) return customAlert("PIN 번호는 4자리 숫자여야 합니다.");
   showLoader("저장 중...");
   try {
-    await fetch(GAS_URL, { method:'POST', body:JSON.stringify({action:'updateAutoRenew',email:currentUser.email,isAuto:a,pinCode:p}) }); hideLoader();
+    await fetchSafe(`?action=updateAutoRenew&email=${encodeURIComponent(currentUser.email)}&isAuto=${a}&pinCode=${p}`); hideLoader();
     customAlert("저장되었습니다."); currentUser.autoRenew=a; currentUser.pinCode=p; localStorage.setItem('gemini_user',JSON.stringify(currentUser));
-  } catch(e) { hideLoader(); customAlert("오류 발생: " + e.message); }
+  } catch(e) { hideLoader(); customAlert(e.message); }
 }
 
 async function manualRenewPolling() {
   const m = document.getElementById('renew-months').value, n = currentUser.name; let att = 0; showLoader("스캔 중...(최대 30초)");
   const intv = setInterval(async () => {
     att++; try {
-      const res = await fetch(`${GAS_URL}?action=pollDeposit&name=${encodeURIComponent(n)}&months=${m}`); const r = await res.json();
+      const r = await fetchSafe(`?action=pollDeposit&name=${encodeURIComponent(n)}&months=${m}`);
       if (r.status === 'matched' || r.status === 'adjusted') {
         clearInterval(intv); hideLoader(); showLoader("DB 처리 중...");
-        const rRes = await fetch(GAS_URL, { method:'POST', body:JSON.stringify({action:'manualRenew',email:currentUser.email,months:r.months}) }); const rr = await rRes.json(); hideLoader();
-        if(rr.success) { await customAlert((r.status==='adjusted'?r.message+"\n\n":"")+`연장 완료!\n변경 후: ${rr.newExpiry}`); refreshDashboard(); } 
-        else customAlert("DB 오류.");
+        const rr = await fetchSafe(`?action=manualRenew&email=${encodeURIComponent(currentUser.email)}&months=${r.months}`); hideLoader();
+        await customAlert((r.status==='adjusted'?r.message+"\n\n":"")+`연장 완료!\n변경 후: ${rr.newExpiry}`); refreshDashboard();
       } else if (att >= 10) { clearInterval(intv); hideLoader(); customAlert("내역을 찾지 못했습니다."); }
-    } catch(e){}
+    } catch(e){ if(att >= 10) { clearInterval(intv); hideLoader(); customAlert(e.message); } }
   }, 3000);
 }
 
@@ -276,13 +284,13 @@ async function submitAS(type) {
   if(!checkASLimit()) return customAlert("1분 이상 대기 후 다시 시도해주세요.");
   let reason = type; if(type==='기타') { const v = document.getElementById('as-other-input').value.trim(); if(!v) return; reason = v; }
   pendingASReason = reason; showLoader("전송 중...");
-  try { await fetch(GAS_URL, { method:'POST', body:JSON.stringify({action:'sendAS',email:currentUser.email,name:currentUser.name,reason:reason}) }); }catch(e){}
+  try { await fetchSafe(`?action=sendAS&email=${encodeURIComponent(currentUser.email)}&name=${encodeURIComponent(currentUser.name)}&reason=${encodeURIComponent(reason)}`); }catch(e){}
   hideLoader(); document.getElementById('as-step1').classList.add('hidden'); document.getElementById('as-step2').classList.remove('hidden');
 }
 async function submitASPhone() {
   const p = document.getElementById('as-phone-input').value.trim(); if(!p) return closeASModal();
   showLoader("연락처 전송 중...");
-  try { await fetch(GAS_URL, { method:'POST', body:JSON.stringify({action:'sendAS',email:currentUser.email,name:currentUser.name,reason:pendingASReason+'(연락처)',phone:p}) }); }catch(e){}
+  try { await fetchSafe(`?action=sendAS&email=${encodeURIComponent(currentUser.email)}&name=${encodeURIComponent(currentUser.name)}&reason=${encodeURIComponent(pendingASReason+'(연락처)')}&phone=${encodeURIComponent(p)}`); }catch(e){}
   hideLoader(); closeASModal(); customAlert("접수되었습니다.");
 }
 </script>
