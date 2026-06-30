@@ -147,7 +147,6 @@ function hideLoader() { document.getElementById('global-loader').classList.add('
 function updateRegPrice() { document.getElementById('reg-total-price').innerText = ((parseInt(document.getElementById('reg-months').value)||1)*basePrice).toLocaleString(); }
 function updateRenewPrice() { document.getElementById('renew-total-price').innerText = ((parseInt(document.getElementById('renew-months').value)||1)*basePrice).toLocaleString(); }
 
-  
 window.onload = async () => {
   showLoader("데이터를 불러오는 중...");
   try {
